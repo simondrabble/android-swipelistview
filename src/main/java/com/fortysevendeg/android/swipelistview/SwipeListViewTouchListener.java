@@ -23,6 +23,7 @@ package com.fortysevendeg.android.swipelistview;
 import android.graphics.Rect;
 import android.os.Handler;
 import android.view.*;
+import android.util.Log;
 import android.widget.AbsListView;
 import android.widget.ListView;
 import com.nineoldandroids.animation.Animator;
@@ -48,6 +49,8 @@ public class SwipeListViewTouchListener implements View.OnTouchListener {
 
     private int swipeFrontView = 0;
     private int swipeBackView = 0;
+    private int swipeOtherView = 0;
+    private int swipeBackSide = 0;
 
     private Rect rect = new Rect();
 
@@ -75,6 +78,7 @@ public class SwipeListViewTouchListener implements View.OnTouchListener {
     private View parentView;
     private View frontView;
     private View backView;
+    private View otherView;
     private boolean paused;
 
     private int swipeCurrentAction = SwipeListView.SWIPE_ACTION_NONE;
@@ -93,8 +97,32 @@ public class SwipeListViewTouchListener implements View.OnTouchListener {
      * @param swipeBackView back view Identifier
      */
     public SwipeListViewTouchListener(SwipeListView swipeListView, int swipeFrontView, int swipeBackView) {
+        this(swipeListView, swipeFrontView, swipeBackView, 0, SwipeListView.SWIPE_MODE_LEFT);
+    }
+
+    /**
+     * Constructor
+     * @param swipeListView SwipeListView
+     * @param swipeFrontView front view Identifier
+     * @param swipeBackView back view Identifier
+     * @param swipeOtherView other view Identifier
+     * @param backIsWhichDirection whether back refers to left or right swiping.
+     */
+    public SwipeListViewTouchListener(SwipeListView swipeListView, int swipeFrontView,
+                                      int swipeBackView, int swipeOtherView,
+                                      int backIsWhichDirection) {
         this.swipeFrontView = swipeFrontView;
         this.swipeBackView = swipeBackView;
+        this.swipeOtherView = swipeOtherView;
+        this.swipeBackSide = backIsWhichDirection;
+
+        if (!(backIsWhichDirection == SwipeListView.SWIPE_MODE_LEFT
+              || backIsWhichDirection == SwipeListView.SWIPE_MODE_RIGHT
+              || backIsWhichDirection == SwipeListView.SWIPE_MODE_NONE)) {
+            throw new RuntimeException("Back direction must be one of SwipeListView.SWIPE_MODE_LEFT, SwipeListView.SWIPE_MODE_RIGHT, or SwipeListView.SWIPE_MODE_NONE");
+
+        }
+
         ViewConfiguration vc = ViewConfiguration.get(swipeListView.getContext());
         slop = vc.getScaledTouchSlop();
         minFlingVelocity = vc.getScaledMinimumFlingVelocity();
@@ -145,6 +173,20 @@ public class SwipeListViewTouchListener implements View.OnTouchListener {
             @Override
             public void onClick(View v) {
                 swipeListView.onClickBackView(downPosition);
+            }
+        });
+    }
+
+    /**
+     * Set current item's other back view
+     * @param otherView
+     */
+    private void setOtherView(View otherView) {
+        this.otherView = otherView;
+        otherView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                swipeListView.onClickOtherView(downPosition);
             }
         });
     }
@@ -377,6 +419,11 @@ public class SwipeListViewTouchListener implements View.OnTouchListener {
             }
         }
 
+        Log.d("sdd", String.format("sdd 422; otherview: (%s), swipebackside: (%s), swap: (%s)",
+                                   otherView,
+                                   swipeBackSide == SwipeListView.SWIPE_MODE_NONE ? "none" :
+                                   swipeBackSide == SwipeListView.SWIPE_MODE_LEFT ? "left" : "right",
+                                   swap));
         animate(view)
                 .translationX(moveTo)
                 .setDuration(animationTime)
@@ -493,7 +540,13 @@ public class SwipeListViewTouchListener implements View.OnTouchListener {
                         velocityTracker.addMovement(motionEvent);
                         if (swipeBackView > 0) {
                             setBackView(child.findViewById(swipeBackView));
+
+                            if (swipeBackSide != SwipeListView.SWIPE_MODE_NONE
+                                && swipeOtherView > 0) {
+                                setOtherView(child.findViewById(swipeOtherView));
+                            }
                         }
+
                         break;
                     }
                 }
@@ -546,6 +599,7 @@ public class SwipeListViewTouchListener implements View.OnTouchListener {
                 }
                 frontView = null;
                 backView = null;
+                otherView = null;
                 this.downPosition = ListView.INVALID_POSITION;
                 swiping = false;
                 break;
@@ -639,7 +693,43 @@ public class SwipeListViewTouchListener implements View.OnTouchListener {
             setAlpha(parentView, Math.max(0f, Math.min(1f,
                     1f - 2f * Math.abs(deltaX) / viewWidth)));
         } else {
-            setTranslationX(frontView, deltaX);
+            if (otherView != null && swipeBackSide != SwipeListView.SWIPE_MODE_NONE) {
+                View hide_view;
+                View show_view;
+
+                if (deltaX > 0) {
+                    if (swipeBackSide == SwipeListView.SWIPE_MODE_RIGHT) {
+                        hide_view = otherView;
+                        show_view = backView;
+
+                    } else {
+                        hide_view = backView;
+                        show_view = otherView;
+
+                    }
+
+                } else {
+                    if (swipeBackSide == SwipeListView.SWIPE_MODE_RIGHT) {
+                        hide_view = backView;
+                        show_view = otherView;
+
+                    } else {
+                        hide_view = otherView;
+                        show_view = backView;
+
+                    }
+                }
+
+                if (hide_view != null) {
+                    hide_view.setVisibility(View.INVISIBLE);
+                }
+
+                if (show_view != null) {
+                    show_view.setVisibility(View.VISIBLE);
+                }
+            }
+
+                setTranslationX(frontView, deltaX);
         }
     }
 

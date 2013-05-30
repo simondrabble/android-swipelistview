@@ -26,6 +26,12 @@
         <attr name="swipeCloseAllItemsWhenMoveList" format="boolean"/>
         <attr name="swipeFrontView" format="reference"/>
         <attr name="swipeBackView" format="reference"/>
+        <attr name="swipeOtherView" format="reference"/>
+        <attr name="swipeBackSide" format="enum">
+            <enum name="none" value="0" />
+            <enum name="left" value="3" />
+            <enum name="right" value="2" />
+        </attr>
         <attr name="swipeMode" format="enum">
             <enum name="none" value="0"/>
             <enum name="both" value="1"/>

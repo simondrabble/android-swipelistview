@@ -34,6 +34,10 @@ public class BaseSwipeListViewListener implements SwipeListViewListener {
     }
 
     @Override
+    public void onClickOtherView(int position) {
+    }
+
+    @Override
     public void onDismiss(int[] reverseSortedPositions) {
     }
 

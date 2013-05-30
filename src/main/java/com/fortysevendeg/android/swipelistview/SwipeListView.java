@@ -90,6 +90,16 @@ public class SwipeListView extends ListView {
     public final static String SWIPE_DEFAULT_BACK_VIEW = "swipelist_backview";
 
     /**
+     * Default id for left-back view
+     */
+    public final static String SWIPE_DEFAULT_LEFT_BACK_VIEW = "swipelist_leftview";
+
+    /**
+     * Default id for right-back view
+     */
+    public final static String SWIPE_DEFAULT_RIGHT_BACK_VIEW = "swipelist_rightview";
+
+    /**
      * Indicates no movement
      */
     private final static int TOUCH_STATE_REST = 0;
@@ -112,6 +122,8 @@ public class SwipeListView extends ListView {
 
     int swipeFrontView = 0;
     int swipeBackView = 0;
+    int swipeOtherView = 0;
+    int swipeBackSide = 0;
 
     /**
      * Internal listener for common swipe events
@@ -130,9 +142,48 @@ public class SwipeListView extends ListView {
      * @param swipeFrontView Front Identifier
      */
     public SwipeListView(Context context, int swipeBackView, int swipeFrontView) {
+        this(context, swipeBackView, swipeFrontView, 0, SWIPE_MODE_NONE);
+    }
+
+    /**
+     * If you create a View programmatically you need send back and front identifier,
+     * the 'other' direction's identifier, and whether the back identifier
+     * is shown by swiping left or right (and therefore, whether the other
+     * identifier is shown by swiping right or left). If backIsWhichDirection ==
+     * SWIPE_MODE_NONE, then the back view will be shown (per reveal/ delete
+     * mode) when the list cell is swiped *either* left or right, and the other
+     * view will not be revealed at all - in other words this will mimic the old
+     * (BackView only) behaviour.
+     * If this is still confusing:
+     *   BackView set, no OtherView, backIsWhichDirection == NONE: old behaviour
+     *   BackView set, OtherView set, backIsWhichDirection == LEFT:
+     *     BackView will be shown when FrontView is swiped left.
+     *     OtherView will be shown when FrontView is swiped right.
+     *   BackView set, OtherView set, backIsWhichDirection == RIGHT:
+     *     BackView will be shown when FrontView is swiped right.
+     *     OtherView will be shown when FrontView is swiped left.
+     *  Behaviour is undefined for any other combination.
+     * @param context Context
+     * @param swipeBackView Back Identifier
+     * @param swipeFrontView Front Identifier
+     * @param swipeOtherView Other Identifier
+     * @param backIsWhichDirection Back view swipe direction
+     */
+    public SwipeListView(Context context, int swipeBackView, int swipeFrontView,
+                         int swipeOtherView, int backIsWhichDirection) {
         super(context);
         this.swipeFrontView = swipeFrontView;
         this.swipeBackView = swipeBackView;
+        this.swipeOtherView = swipeOtherView;
+        this.swipeBackSide = backIsWhichDirection;
+
+        if (!(backIsWhichDirection == SWIPE_MODE_LEFT
+              || backIsWhichDirection == SWIPE_MODE_RIGHT
+              || backIsWhichDirection == SWIPE_MODE_NONE)) {
+            throw new RuntimeException("Back direction must be one of SWIPE_MODE_LEFT, SWIPE_MODE_RIGHT, or SWIPE_MODE_NONE");
+
+        }
+
         init(null);
     }
 
@@ -181,6 +232,8 @@ public class SwipeListView extends ListView {
             swipeCloseAllItemsWhenMoveList = styled.getBoolean(R.styleable.SwipeListView_swipeCloseAllItemsWhenMoveList, true);
             swipeFrontView = styled.getResourceId(R.styleable.SwipeListView_swipeFrontView, 0);
             swipeBackView = styled.getResourceId(R.styleable.SwipeListView_swipeBackView, 0);
+            swipeBackSide = styled.getInt(R.styleable.SwipeListView_swipeBackSide, SWIPE_MODE_NONE);
+            swipeOtherView = styled.getResourceId(R.styleable.SwipeListView_swipeOtherView, 0);
         }
 
         if (swipeFrontView == 0 || swipeBackView == 0) {
@@ -194,7 +247,8 @@ public class SwipeListView extends ListView {
 
         final ViewConfiguration configuration = ViewConfiguration.get(getContext());
         touchSlop = ViewConfigurationCompat.getScaledPagingTouchSlop(configuration);
-        touchListener = new SwipeListViewTouchListener(this, swipeFrontView, swipeBackView);
+        touchListener = new SwipeListViewTouchListener(this, swipeFrontView, swipeBackView,
+                                                       swipeOtherView, swipeBackSide);
         if (swipeAnimationTime > 0) {
             touchListener.setAnimationTime(swipeAnimationTime);
         }
@@ -297,6 +351,17 @@ public class SwipeListView extends ListView {
     protected void onClickBackView(int position) {
         if (swipeListViewListener != null) {
             swipeListViewListener.onClickBackView(position);
+        }
+    }
+
+    /**
+     * Notifies onClickOtherView
+     *
+     * @param position other back item clicked
+     */
+    protected void onClickOtherView(int position) {
+        if (swipeListViewListener != null) {
+            swipeListViewListener.onClickOtherView(position);
         }
     }
 
